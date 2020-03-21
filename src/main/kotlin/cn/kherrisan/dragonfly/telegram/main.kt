@@ -12,7 +12,6 @@ import org.springframework.context.ApplicationContextAware
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Component
-import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 import org.telegram.abilitybots.api.bot.AbilityBot
@@ -25,6 +24,8 @@ import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
+
+var hasSentAlert = false
 
 fun main() {
     runApplication<SpringStarter>()
@@ -41,6 +42,9 @@ fun main() {
     schedule.scheduleAtFixedRate(object : Runnable {
         override fun run() {
             println("${Date()}正在检测 Apple 官网翻新产品列表")
+            if (hasSentAlert) {
+                return
+            }
             try {
                 val req = Request.Builder().url("https://www.apple.com.cn/cn-k12/shop/refurbished/ipad")
                     .get().build()
@@ -49,8 +53,12 @@ fun main() {
                 val soup = Jsoup.parse(html)
                 //class="as-gridpage-producttiles as-producttiles pinwheel"
                 val ul = soup.select("div.refurbished-category-grid-no-js")[0].select("ul")[0]
+                if (ul.select("li").isEmpty()) {
+                    hasSentAlert = false
+                }
                 for (ui in ul.select("li")) {
                     val a = ui.select("a")[0]
+                    hasSentAlert = true
                     SpringContainer[TelegramBot::class].sendMessage("${a.text()}，链接：https://www.apple.com.cn/${a.attr("href")}")
                 }
             } catch (e: java.lang.Exception) {
