@@ -1,0 +1,31 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '1.3.70'
+    id 'application'
+    id 'org.springframework.boot' version '2.2.2.RELEASE'
+    id 'io.spring.dependency-management' version '1.0.8.RELEASE'
+}
+
+group 'cn.kherrisan.dragonfly'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+mainClassName = 'cn.kherrisan.dragonfly.telegram.MainKt'
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    implementation "org.springframework.boot:spring-boot-starter"
+    compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '4.4.1'
+    compile group: 'org.jsoup', name: 'jsoup', version: '1.8.3'
+    compile "org.telegram:telegrambots:4.6"
+    compile "org.telegram:telegrambots-abilities:4.6"
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
