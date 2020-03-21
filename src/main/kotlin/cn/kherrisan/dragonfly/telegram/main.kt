@@ -12,6 +12,9 @@ import org.springframework.context.ApplicationContextAware
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Component
+import org.springframework.stereotype.Controller
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RestController
 import org.telegram.abilitybots.api.bot.AbilityBot
 import org.telegram.abilitybots.api.objects.Ability
 import org.telegram.abilitybots.api.objects.Locality
@@ -55,6 +58,16 @@ fun main() {
             }
         }
     }, 0, SpringContainer[Config::class].interval!!.toLong(), TimeUnit.SECONDS)
+}
+
+@RestController
+class UselessController {
+
+    @GetMapping("/hello")
+    fun hello(): String {
+        return "world"
+    }
+
 }
 
 @Component

@@ -17,6 +17,7 @@ mainClassName = 'cn.kherrisan.dragonfly.telegram.MainKt'
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     implementation "org.springframework.boot:spring-boot-starter"
+    implementation "org.springframework.boot:spring-boot-starter-web"
     compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '4.4.1'
     compile group: 'org.jsoup', name: 'jsoup', version: '1.8.3'
     compile "org.telegram:telegrambots:4.6"
