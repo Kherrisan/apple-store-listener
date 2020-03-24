@@ -37,25 +37,28 @@ import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
 var invokeCounter = 0
-var systemStartTime = Date()
-var lastCheckTime = Date()
+var systemStartTime = MyDate()
+var lastCheckTime = MyDate()
 val logger = LogManager.getLogger()
 
 fun main() {
     runApplication<SpringStarter>()
-    ApiContextInitializer.init()
-    val api = TelegramBotsApi()
-    try {
-        api.registerBot(SpringContainer[TelegramBot::class])
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
+    val config = SpringContainer[Config::class]
     val vertx = Vertx.vertx()
-    vertx.deployVerticle(TelegramVerticle())
+    if (config.tg!!) {
+        ApiContextInitializer.init()
+        val api = TelegramBotsApi()
+        try {
+            api.registerBot(SpringContainer[TelegramBot::class])
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        vertx.deployVerticle(TelegramVerticle())
+        SpringContainer[TelegramBot::class].sendMessage("Apple-Store-listener已启动")
+    }
     vertx.deployVerticle(EmailVerticle())
     vertx.deployVerticle(DispatcherVerticle())
     vertx.deployVerticle(CrawlerVerticle())
-    SpringContainer[TelegramBot::class].sendMessage("Apple-Store-listener已启动")
 }
 
 @Component

@@ -3,9 +3,12 @@ dragonfly:
   chatId: -1001288425638
   creatorId: 664242935
   name: Lecia
+  tg: true
 server:
   port: 8080
 spring:
   data:
     mongodb:
       database: asl
+  main:
+    lazy-initialization: true

@@ -44,8 +44,16 @@
             <input id="email" type="text" class="form-control" placeholder="Email" aria-label="Email"
                    aria-describedby="basic-addon1">
             <br/>
+            <div style="align-content: center">
+                <select class="form-control" id="productLine" style="width: 50%;margin: 0 auto">
+                    <option>iPad</option>
+                    <option>Watch</option>
+                    <option>Mac</option>
+                </select>
+            </div>
+            <br/>
             <div>
-                <button id="btn" type="button" class="btn btn-primary col-4" style="width: 100%">订阅</button>
+                <button id="btn" type="button" class="btn btn-primary" style="width: 50%;margin: 0 auto">订阅</button>
             </div>
         </div>
         <div class="col-3"></div>
@@ -56,18 +64,18 @@
     <br>
     <br>
     <div class="row">
-        <div class="col-3"></div>
-        <div class="col-3" style="text-align: right;font-size: small">
+        <div class="col-3 col-sm-1"></div>
+        <div class="col-3 col-sm-4" style="text-align: right;font-size: small">
             <div>启动时间</div>
             <div>最近检查Apple官网时间</div>
             <div>调用次数</div>
         </div>
-        <div class="col-5" style="text-align: left;font-size: small">
+        <div class="col-5 col-sm-6" style="text-align: left;font-size: small">
             <div id="startTime"></div>
             <div id="lastCheck"></div>
             <div id="invoke"></div>
         </div>
-        <div class="col-1"></div>
+        <div class="col-1 col-sm-1"></div>
     </div>
 
 </div>
@@ -125,49 +133,69 @@
             return f === c ? a(d, e, false) : a(d, f, e !== false)
         }
     })(this);
-    $("input#email").bind("input propertychange", $.debounce(250, function () {
-        var email = $("#email").val()
-        $.get("/registration/" + email, function (data) {
+
+    function email() {
+        return $("#email").val()
+    }
+
+    function productLine() {
+        return $("#productLine option:selected").text()
+    }
+
+    $("#productLine").change(function () {
+        $.get("/registration/" + email() + "/" + productLine(), function (data) {
             var obj = $.parseJSON(data)
             if (obj.success) {
-                $("#btn").attr("disabled",false)
+                $("#btn").attr("disabled", false)
                 $("#btn").text(obj.msg)
             } else {
-                $("#btn").attr("disabled",true)
+                $("#btn").attr("disabled", true)
+                $("#btn").text(obj.msg)
+            }
+        })
+    })
+
+    $("input#email").bind("input propertychange", $.debounce(250, function () {
+        $.get("/registration/" + email() + "/" + productLine(), function (data) {
+            var obj = $.parseJSON(data)
+            if (obj.success) {
+                $("#btn").attr("disabled", false)
+                $("#btn").text(obj.msg)
+            } else {
+                $("#btn").attr("disabled", true)
                 $("#btn").text(obj.msg)
             }
         })
     }));
     $('#btn').click(function (evt) {
         var btn = $("#btn").text()
-        var email = $("#email").val()
         if (btn == "订阅") {
-            $.post("/registration/" + email, function (data) {
+            $.post("/registration/" + email() + "/" + productLine(), function (data) {
                 var obj = $.parseJSON(data)
                 if (obj.success) {
                     $("#btn").text(obj.msg)
-                    $("#btn").attr("disabled",true)
+                    $("#btn").attr("disabled", true)
                     setTimeout(function () {
-                        $("#btn").attr("disabled",false)
+                        $("#btn").attr("disabled", false)
                         $("#btn").text("取消订阅")
-                    },2000)
+                    }, 2000)
                 } else {
                     alert(obj.msg)
                 }
             })
         } else {
             $.ajax({
-                url: "/registration/" + email,
+                url: "/registration/" + email() + "/" + productLine(),
                 type: 'DELETE',
                 success: function (data) {
                     var obj = $.parseJSON(data)
                     if (obj.success) {
                         $("#btn").text(obj.msg)
-                        $("#btn").attr("disabled",true)
+                        $("#btn").attr("disabled", true)
                         setTimeout(function () {
-                            $("#btn").attr("disabled",false)
+                            $("#btn").attr("disabled", false)
                             $("#btn").text("订阅")
-                        },2000)
+                        }, 2000)
                     } else {
                         alert(obj.msg)
                     }
@@ -175,8 +203,8 @@
             })
         }
     });
-    $.get("/system",function (data) {
-        var obj=$.parseJSON(data).msg
+    $.get("/system", function (data) {
+        var obj = $.parseJSON(data).msg
         $("#lastCheck").text(obj.lastCheck)
         $("#startTime").text(obj.startTime)
         $("#invoke").text(obj.invoke)

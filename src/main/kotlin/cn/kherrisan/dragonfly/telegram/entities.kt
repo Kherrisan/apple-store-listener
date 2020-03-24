@@ -20,8 +20,8 @@ data class Sequence(
 
 enum class ProductLine {
     IPAD,
-//    MAC,
-//    WATCH
+    MAC,
+    WATCH
 }
 
 data class SubscriptionKey(
@@ -57,6 +57,7 @@ data class MessageJob(
 @ConfigurationProperties(prefix = "dragonfly")
 @Configuration
 open class Config(
+    var tg: Boolean? = null,
     var interval: Long? = null,
     var token: String? = System.getenv("token"),
     var name: String? = null,
