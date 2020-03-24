@@ -5,24 +5,33 @@ plugins {
     id 'io.spring.dependency-management' version '1.0.8.RELEASE'
 }
 
-group 'cn.kherrisan.dragonfly'
+group 'cn.kherrisan.apple-store-listener'
 version '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
 }
 
-mainClassName = 'cn.kherrisan.dragonfly.telegram.MainKt'
-
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-    implementation "org.springframework.boot:spring-boot-starter"
+    compile ("org.springframework.boot:spring-boot-starter")
     implementation "org.springframework.boot:spring-boot-starter-web"
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation "org.jetbrains.kotlin:kotlin-reflect"
+    implementation"org.springframework.boot:spring-boot-starter-log4j2"
+    implementation "org.springframework.boot:spring-boot-starter-data-mongodb"
+    implementation "org.apache.logging.log4j:log4j-api:2.13.0"
+    implementation "org.apache.logging.log4j:log4j-core:2.13.0"
+    implementation "com.google.code.gson:gson:2.8.6"
     compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '4.4.1'
     compile group: 'org.jsoup', name: 'jsoup', version: '1.8.3'
     compile "org.telegram:telegrambots:4.6"
     compile "org.telegram:telegrambots-abilities:4.6"
+    implementation 'org.simplejavamail:simple-java-mail:6.0.3'
+    implementation("io.vertx:vertx-lang-kotlin-coroutines:3.8.4")
+    implementation("io.vertx:vertx-lang-kotlin:3.8.4")
+    compile 'io.vertx:vertx-web-client:3.8.5'
+    implementation "commons-codec:commons-codec:1.13"
+
 }
 
 compileKotlin {
@@ -30,4 +39,10 @@ compileKotlin {
 }
 compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
+}
+
+configurations {
+    all {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    }
 }

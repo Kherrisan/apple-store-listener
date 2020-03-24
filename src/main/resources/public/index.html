@@ -1,0 +1,189 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+          integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"
+            integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            font-family: arial, "Hiragino Sans GB", "Microsoft Yahei", sans-serif;
+        }
+
+        .main-body {
+            margin-top: 8em;
+            text-align: center;
+        }
+
+        .title span {
+            color: chocolate;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <div class="row" style="text-align: center;margin-top: 8em">
+        <div class="col">
+            <h1 class="title">Welcome to <span>apple-store-listener</span></h1>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-3"></div>
+        <div class="col-6" style="text-align: center;">
+            <br/>
+            <p>
+                    <span style="color: crimson;font-weight: bolder;">
+                        使用方法
+                    </span>
+                <br>
+                在输入框中输入自己的邮箱，点击按钮即可订阅上新的提醒邮件。不支持重复订阅，系统在你输入了邮箱之后会自动检查邮箱的订阅状态。
+            </p>
+            <input id="email" type="text" class="form-control" placeholder="Email" aria-label="Email"
+                   aria-describedby="basic-addon1">
+            <br/>
+            <div>
+                <button id="btn" type="button" class="btn btn-primary col-4" style="width: 100%">订阅</button>
+            </div>
+        </div>
+        <div class="col-3"></div>
+    </div>
+    <div class="row">
+
+    </div>
+    <br>
+    <br>
+    <div class="row">
+        <div class="col-3"></div>
+        <div class="col-3" style="text-align: right;font-size: small">
+            <div>启动时间</div>
+            <div>最近检查Apple官网时间</div>
+            <div>调用次数</div>
+        </div>
+        <div class="col-5" style="text-align: left;font-size: small">
+            <div id="startTime"></div>
+            <div id="lastCheck"></div>
+            <div id="invoke"></div>
+        </div>
+        <div class="col-1"></div>
+    </div>
+
+</div>
+
+<script>
+    /*
+        * jQuery throttle / debounce - v1.1 - 3/7/2010
+        * http://benalman.com/projects/jquery-throttle-debounce-plugin/
+        *
+        * Copyright (c) 2010 "Cowboy" Ben Alman
+        * Dual licensed under the MIT and GPL licenses.
+        * http://benalman.com/about/license/
+        */
+    (function (b, c) {
+        var $ = b.jQuery || b.Cowboy || (b.Cowboy = {}), a;
+        $.throttle = a = function (e, f, j, i) {
+            var h, d = 0;
+            if (typeof f !== "boolean") {
+                i = j;
+                j = f;
+                f = c
+            }
+
+            function g() {
+                var o = this, m = +new Date() - d, n = arguments;
+
+                function l() {
+                    d = +new Date();
+                    j.apply(o, n)
+                }
+
+                function k() {
+                    h = c
+                }
+
+                if (i && !h) {
+                    l()
+                }
+                h && clearTimeout(h);
+                if (i === c && m > e) {
+                    l()
+                } else {
+                    if (f !== true) {
+                        h = setTimeout(i ? k : l, i === c ? e - m : e)
+                    }
+                }
+            }
+
+            if ($.guid) {
+                g.guid = j.guid = j.guid || $.guid++
+            }
+            return g
+        };
+        $.debounce = function (d, e, f) {
+            return f === c ? a(d, e, false) : a(d, f, e !== false)
+        }
+    })(this);
+    $("input#email").bind("input propertychange", $.debounce(250, function () {
+        var email = $("#email").val()
+        $.get("/registration/" + email, function (data) {
+            var obj = $.parseJSON(data)
+            if (obj.success) {
+                $("#btn").attr("disabled",false)
+                $("#btn").text(obj.msg)
+            } else {
+                $("#btn").attr("disabled",true)
+                $("#btn").text(obj.msg)
+            }
+        })
+    }));
+    $('#btn').click(function (evt) {
+        var btn = $("#btn").text()
+        var email = $("#email").val()
+        if (btn == "订阅") {
+            $.post("/registration/" + email, function (data) {
+                var obj = $.parseJSON(data)
+                if (obj.success) {
+                    $("#btn").text(obj.msg)
+                    $("#btn").attr("disabled",true)
+                    setTimeout(function () {
+                        $("#btn").attr("disabled",false)
+                        $("#btn").text("取消订阅")
+                    },2000)
+                } else {
+                    alert(obj.msg)
+                }
+            })
+        } else {
+            $.ajax({
+                url: "/registration/" + email,
+                type: 'DELETE',
+                success: function (data) {
+                    var obj = $.parseJSON(data)
+                    if (obj.success) {
+                        $("#btn").text(obj.msg)
+                        $("#btn").attr("disabled",true)
+                        setTimeout(function () {
+                            $("#btn").attr("disabled",false)
+                            $("#btn").text("订阅")
+                        },2000)
+                    } else {
+                        alert(obj.msg)
+                    }
+                }
+            })
+        }
+    });
+    $.get("/system",function (data) {
+        var obj=$.parseJSON(data).msg
+        $("#lastCheck").text(obj.lastCheck)
+        $("#startTime").text(obj.startTime)
+        $("#invoke").text(obj.invoke)
+    })
+
+</script>
+
+</body>
+
+</html>

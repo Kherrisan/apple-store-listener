@@ -1,8 +1,11 @@
 dragonfly:
-  keyword: ipad
-  interval: 10
-  chatId: -1001346407156
+  interval: 10000
+  chatId: -1001288425638
   creatorId: 664242935
   name: Lecia
 server:
   port: 8080
+spring:
+  data:
+    mongodb:
+      database: asl

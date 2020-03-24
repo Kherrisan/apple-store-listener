@@ -1,8 +1,15 @@
 package cn.kherrisan.dragonfly.telegram
 
+import com.google.gson.Gson
+import io.vertx.core.Vertx
+import io.vertx.kotlin.core.cli.optionOf
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.apache.logging.log4j.LogManager
 import org.jsoup.Jsoup
+import org.simplejavamail.api.mailer.config.TransportStrategy
+import org.simplejavamail.email.EmailBuilder
+import org.simplejavamail.mailer.MailerBuilder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -11,9 +18,12 @@ import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationContextAware
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Lazy
+import org.springframework.data.mongodb.core.MongoTemplate
+import org.springframework.data.mongodb.core.query.Criteria
+import org.springframework.data.mongodb.core.query.Query
+import org.springframework.data.mongodb.core.query.Update
 import org.springframework.stereotype.Component
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import org.telegram.abilitybots.api.bot.AbilityBot
 import org.telegram.abilitybots.api.objects.Ability
 import org.telegram.abilitybots.api.objects.Locality
@@ -23,9 +33,13 @@ import org.telegram.telegrambots.meta.TelegramBotsApi
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
-var hasSentAlert = false
+var invokeCounter = 0
+var systemStartTime = Date()
+var lastCheckTime = Date()
+val logger = LogManager.getLogger()
 
 fun main() {
     runApplication<SpringStarter>()
@@ -36,46 +50,12 @@ fun main() {
     } catch (e: Exception) {
         e.printStackTrace()
     }
-    SpringContainer[TelegramBot::class].sendMessage("系统启动")
-    val client = OkHttpClient()
-    val schedule = Executors.newSingleThreadScheduledExecutor()
-    schedule.scheduleAtFixedRate(object : Runnable {
-        override fun run() {
-            println("${Date()}正在检测 Apple 官网翻新产品列表")
-            if (hasSentAlert) {
-                return
-            }
-            try {
-                val req = Request.Builder().url("https://www.apple.com.cn/cn-k12/shop/refurbished/ipad")
-                    .get().build()
-                val resp = client.newCall(req).execute()
-                val html = resp.body!!.string()
-                val soup = Jsoup.parse(html)
-                //class="as-gridpage-producttiles as-producttiles pinwheel"
-                val ul = soup.select("div.refurbished-category-grid-no-js")[0].select("ul")[0]
-                if (ul.select("li").isEmpty()) {
-                    hasSentAlert = false
-                }
-                for (ui in ul.select("li")) {
-                    val a = ui.select("a")[0]
-                    hasSentAlert = true
-                    SpringContainer[TelegramBot::class].sendMessage("${a.text()}，链接：https://www.apple.com.cn/${a.attr("href")}")
-                }
-            } catch (e: java.lang.Exception) {
-                println(e)
-            }
-        }
-    }, 0, SpringContainer[Config::class].interval!!.toLong(), TimeUnit.SECONDS)
-}
-
-@RestController
-class UselessController {
-
-    @GetMapping("/hello")
-    fun hello(): String {
-        return "world"
-    }
-
+    val vertx = Vertx.vertx()
+    vertx.deployVerticle(TelegramVerticle())
+    vertx.deployVerticle(EmailVerticle())
+    vertx.deployVerticle(DispatcherVerticle())
+    vertx.deployVerticle(CrawlerVerticle())
+    SpringContainer[TelegramBot::class].sendMessage("Apple-Store-listener已启动")
 }
 
 @Component
@@ -96,40 +76,6 @@ class SpringContainer : ApplicationContextAware {
     }
 }
 
-@Component
-class TelegramBot(
-    @Autowired
-    private val config: Config
-) : AbilityBot(config.token, config.name) {
-
-    override fun creatorId(): Int = config.creatorId!!
-
-    fun sendMessage(text: String) {
-        println("Send telegram message: $text")
-        silent.send(text, config.chatId!!)
-    }
-
-    fun sayHello(): Ability = Ability.builder()
-        .name("hello")
-        .info("say hello world~")
-        .locality(Locality.ALL)
-        .privacy(Privacy.PUBLIC)
-        .action {
-            silent.send("Hello World!", it.chatId())
-        }
-        .build()
-}
-
-@ConfigurationProperties(prefix = "dragonfly")
-@Configuration
-open class Config(
-    var keyword: String? = null,
-    var interval: Int? = null,
-    var token: String? = System.getenv("token"),
-    var name: String? = null,
-    var creatorId: Int? = null,
-    var chatId: Long? = null
-)
 
 @SpringBootApplication
 open class SpringStarter
