@@ -20,8 +20,8 @@ data class Sequence(
 
 enum class ProductLine {
     IPAD,
-    MAC,
-    WATCH
+//    MAC,
+//    WATCH
 }
 
 data class SubscriptionKey(

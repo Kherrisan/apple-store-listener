@@ -39,16 +39,25 @@
                         使用方法
                     </span>
                 <br>
-                在输入框中输入自己的邮箱，点击按钮即可订阅上新的提醒邮件。不支持重复订阅，系统在你输入了邮箱之后会自动检查邮箱的订阅状态。
+                <span style="font-size: smaller">
+                    在输入框中输入自己的邮箱，选择要订阅的产品线，点击订阅按钮。若要退订，请再次输入邮箱，此时按钮会自动变为取消订阅。
+                </span>
             </p>
+            <p style="color: crimson;font-weight: bolder;margin-bottom: 0">
+                注意事项
+            </p>
+            <ol style="font-size: smaller;text-align: left">
+                <li>目前系统还不太稳定，主要体现在爬虫爬取网页时获得的结果反复无常，商品时而上架，时而下架，因此邮件中的产品可能实际上已经脱销了。</li>
+                <li>自动发邮件是有数量限制的，在不需要订阅的时候请尽可能取消订阅。</li>
+            </ol>
             <input id="email" type="text" class="form-control" placeholder="Email" aria-label="Email"
                    aria-describedby="basic-addon1">
             <br/>
             <div style="align-content: center">
                 <select class="form-control" id="productLine" style="width: 50%;margin: 0 auto">
                     <option>iPad</option>
-                    <option>Watch</option>
-                    <option>Mac</option>
+<!--                    <option>Watch</option>-->
+<!--                    <option>Mac</option>-->
                 </select>
             </div>
             <br/>
@@ -65,12 +74,12 @@
     <br>
     <div class="row">
         <div class="col-3 col-sm-1"></div>
-        <div class="col-3 col-sm-4" style="text-align: right;font-size: small">
+        <div class="col-3 col-sm-4" style="text-align: right;font-size: small;color: #2c3e50">
             <div>启动时间</div>
             <div>最近检查Apple官网时间</div>
             <div>调用次数</div>
         </div>
-        <div class="col-5 col-sm-6" style="text-align: left;font-size: small">
+        <div class="col-5 col-sm-6" style="text-align: left;font-size: small;color: #2c3e50">
             <div id="startTime"></div>
             <div id="lastCheck"></div>
             <div id="invoke"></div>

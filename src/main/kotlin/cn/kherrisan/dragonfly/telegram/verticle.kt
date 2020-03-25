@@ -52,7 +52,12 @@ class EmailVerticle : AbstractVerticle() {
             val msg = Gson().fromJson<MessageJob>(it.body(), MessageJob::class.java)
             val content = msg.products.map { "${it.name}，链接为 ${it.link}" }.joinToString("\n")
             logger.trace("正在发送邮件给 ${msg.receiver}：$content")
-            mailer.sendMail(buildMail(msg.receiver, content))
+            try {
+                mailer.sendMail(buildMail(msg.receiver, content))
+            } catch (e: Exception) {
+                logger.error(e)
+                e.printStackTrace()
+            }
         }
     }
 
@@ -88,12 +93,13 @@ class DispatcherVerticle : AbstractVerticle() {
     }
 
     private fun distinctAndSave(line: ProductLine, upProducts: MutableList<Product>) {
+        val upIpadPros = upProducts.filter { it.name.contains("iPad Pro") }.toMutableList()
         val q = Query()
             .addCriteria(
                 Criteria.where("line").`is`(line.name)
                     .and("downTime").`is`(null)
             )
-        val upProductCodes = upProducts.map { it.code }
+        val upProductCodes = upIpadPros.map { it.code }
         val dbUpProducts = mongoTemplate.find(q, Product::class.java)
         dbUpProducts.filter { it.code !in upProductCodes }.forEach {
             //数据库中的产品不在网页上，下架了
@@ -103,8 +109,8 @@ class DispatcherVerticle : AbstractVerticle() {
         }
         val dbUpProductCodes = dbUpProducts.map { it.code }
         //在数据库中已经存在的，不是新上架的商品
-        upProducts.removeIf { it.code in dbUpProductCodes }
-        upProducts.forEach { p ->
+        upIpadPros.removeIf { it.code in dbUpProductCodes }
+        upIpadPros.forEach { p ->
             logger.debug("发现新的产品上架: $p")
             mongoTemplate.save(p)
         }
@@ -223,25 +229,33 @@ class CrawlerVerticle : AbstractVerticle() {
             }
 
             override fun onResponse(call: Call, response: Response) {
-                val html = response.body!!.string()
-                val soup = Jsoup.parse(html)
-                val json = soup.select("#page > div:nth-child(13) > script")[0].html()
-                    .removePrefix("window.REFURB_GRID_BOOTSTRAP = ").removeSuffix(";")
-                val obj = JsonParser.parseString(json).asJsonObject
-                val products = obj["tiles"].asJsonArray.map { it.asJsonObject }
-                    .filter { it["omnitureModel"].asJsonObject["customerCommitString"].asString == "有现货" }
-                    .map {
-                        Product(
-                            0L,
-                            it["title"].asString,
-                            line,
-                            it["partNumber"].asString
-                        )
+                var html: String = "success"
+                try {
+                    html = response.body!!.string()
+                    val soup = Jsoup.parse(html)
+                    val json = soup.select("#page > div:nth-child(13) > script")[0].html()
+                        .removePrefix("window.REFURB_GRID_BOOTSTRAP = ").removeSuffix(";")
+                    val obj = JsonParser.parseString(json).asJsonObject
+                    val products = obj["tiles"].asJsonArray.map { it.asJsonObject }
+                        .filter { it["omnitureModel"].asJsonObject["customerCommitString"].asString == "有现货" }
+                        .map {
+                            Product(
+                                0L,
+                                it["title"].asString,
+                                line,
+                                it["partNumber"].asString
+                            )
+                        }
+
+                    if (DEBUG && line == ProductLine.IPAD) {
+                        writeFile("${Date().time.toString()}-${products.size}", html)
                     }
-                if (DEBUG && line == ProductLine.IPAD) {
-                    writeFile("${Date().time.toString()}-${products.size}", html)
+                    vertx.eventBus().send(line.name, Gson().toJson(products))
+                } catch (e: Exception) {
+                    logger.error(e)
+                    e.printStackTrace()
+                    writeFile("${Date().time.toString()}-${e.message}", html)
                 }
-                vertx.eventBus().send(line.name, Gson().toJson(products))
             }
         })
     }
