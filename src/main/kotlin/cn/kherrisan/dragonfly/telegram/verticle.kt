@@ -50,7 +50,7 @@ class EmailVerticle : AbstractVerticle() {
     override fun start() {
         vertx.eventBus().consumer<String>(EVENTBUS_EMAIL) { it ->
             val msg = Gson().fromJson<MessageJob>(it.body(), MessageJob::class.java)
-            val content = msg.products.map { it.name }.joinToString("\n")
+            val content = msg.products.map { "${it.name}，链接为 ${it.link}" }.joinToString("\n")
             logger.trace("正在发送邮件给 ${msg.receiver}：$content")
             mailer.sendMail(buildMail(msg.receiver, content))
         }
