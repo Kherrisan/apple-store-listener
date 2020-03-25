@@ -250,27 +250,6 @@ class CrawlerVerticle : AbstractVerticle() {
                 msg.reply(b)
             }
         })
-//        client.getAbs("https://www.apple.com.cn/cn-k12/shop/buyability-message?parts.0=$code").send { ar ->
-//            if (ar.succeeded()) {
-//                try {
-//                    val obj = JsonParser.parseString(ar.result().bodyAsString()).asJsonObject
-//                    val b =
-//                        obj["body"].asJsonObject["content"].asJsonObject["buyabilityMessage"].asJsonObject["sth"].asJsonObject[code].asJsonObject["isBuyable"].asBoolean
-//                    msg.reply(b)
-//                    if (!b) {
-//                        logger.debug(obj)
-//                    }
-//                } catch (e: Exception) {
-//                    logger.error(e)
-//                    e.printStackTrace()
-//                    msg.reply(false)
-//                }
-//            } else {
-//                logger.error(ar.cause())
-//                ar.cause().printStackTrace()
-//                msg.reply(true)
-//            }
-//        }
     }
 
     private fun crawl(line: ProductLine) {
@@ -304,47 +283,5 @@ class CrawlerVerticle : AbstractVerticle() {
                 vertx.eventBus().send(line.name, Gson().toJson(products))
             }
         })
-//        client.getAbs("https://www.apple.com.cn/cn-k12/shop/refurbished/${line.name.toLowerCase()}").send { ar ->
-//            if (ar.succeeded()) {
-//                val soup = Jsoup.parse(ar.result().bodyAsString())
-//                val ul = soup.select("div.refurbished-category-grid-no-js")[0].select("ul")[0]
-//                val products = ul.select("li")
-//                    .map { it.select("a")[0] }
-//                    .map { a ->
-//                        logger.trace("爬取到 $a")
-//                        val href = a.attr("href")
-//                        "${a.text()}，链接为：https://www.apple.com.cn${href.removeRange(
-//                            href.indexOf("?fnode"),
-//                            href.length
-//                        )}"
-//                    }
-//                vertx.eventBus().send(line.name, Gson().toJson(products))
-//            } else {
-//                logger.error(ar.cause())
-//                ar.cause().printStackTrace()
-//            }
-//        }
-    }
-}
-
-class TelegramVerticle : AbstractVerticle() {
-
-    private val telegramBot = SpringContainer[TelegramBot::class.java]
-
-    override fun start() {
-        vertx.eventBus().consumer<String>(EVENTBUS_TELEGRAM) { it ->
-            val type = object : TypeToken<List<Product>>() {}.type
-            val msg = Gson().fromJson<List<Product>>(it.body(), type)
-            val line = msg[0].line
-            vertx.executeBlocking<Unit>({ p ->
-                telegramBot.sendMessage("Apple Store翻新区上架了 ${msg.size} 台 $line 设备，链接为 https://www.apple.com.cn/cn-k12/shop/refurbished/${line.name.toLowerCase()}")
-                p.complete()
-            }, { ar ->
-                if (ar.failed()) {
-                    logger.error(ar.cause())
-                    ar.cause().printStackTrace()
-                }
-            })
-        }
     }
 }

@@ -3,7 +3,7 @@ dragonfly:
   chatId: -1001288425638
   creatorId: 664242935
   name: Lecia
-  tg: true
+  tg: false
 server:
   port: 8080
 spring:
