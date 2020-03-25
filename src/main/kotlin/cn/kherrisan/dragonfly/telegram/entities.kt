@@ -47,7 +47,10 @@ data class Product(
     val code: String,
     val upTime: Date = MyDate(),
     var downTime: Date? = null
-)
+) {
+    val link: String
+        get() = "https://www.apple.com.cn/shop/product/$code"
+}
 
 data class MessageJob(
     val products: List<Product>,

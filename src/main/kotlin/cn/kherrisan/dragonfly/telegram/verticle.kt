@@ -4,19 +4,10 @@ import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.Vertx
 import io.vertx.core.eventbus.Message
-import io.vertx.ext.web.client.WebClient
-import io.vertx.ext.web.client.WebClientOptions
-import io.vertx.kotlin.ext.web.client.WebClientOptions
 import io.vertx.kotlin.ext.web.client.webClientOptionsOf
-import kotlinx.coroutines.delay
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import okhttp3.*
 import okhttp3.Response
-import okhttp3.internal.userAgent
 import org.jsoup.Jsoup
 import org.simplejavamail.api.email.Email
 import org.simplejavamail.api.mailer.config.TransportStrategy
@@ -27,6 +18,7 @@ import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import java.io.IOException
 import java.util.*
+import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
 const val EVNETBUS_DOWN = "1"
@@ -35,7 +27,6 @@ const val EVENTBUS_TELEGRAM = "3"
 const val TELEGRAM_ADDRESS = "TELEGRAM_ADDRESS"
 
 val CODE_PATTERN = Pattern.compile("/shop/product/(.+)$")
-val downMap = mutableMapOf<String, Int>()
 var DEBUG = false
 
 fun main() {
@@ -83,76 +74,38 @@ class DispatcherVerticle : AbstractVerticle() {
     override fun start() {
         for (line in ProductLine.values()) {
             vertx.eventBus().consumer<String>(line.name) { it ->
-                val type = object : TypeToken<List<String>>() {}.type
-                val list = Gson().fromJson<List<String>>(it.body(), type)
-                duplicateAndSave(line, list.toMutableList())
+                val type = object : TypeToken<List<Product>>() {}.type
+                val list = Gson().fromJson<List<Product>>(it.body(), type)
+                distinctAndSave(line, list.toMutableList())
             }
             vertx.setPeriodic(10000) {
                 dispatchNewEmail(line)
                 if (config.tg!!) {
                     dispatchNewTelegram(line)
                 }
-//                checkProductsInDbBuyable(line)
             }
         }
     }
 
-    private fun checkProductsInDbBuyable(line: ProductLine) {
+    private fun distinctAndSave(line: ProductLine, upProducts: MutableList<Product>) {
         val q = Query()
             .addCriteria(
                 Criteria.where("line").`is`(line.name)
                     .and("downTime").`is`(null)
             )
-        mongoTemplate.find(q, Product::class.java).forEach {
-            checkProductBuyable(it) { buyable, product ->
-                if (!buyable) {
-                    product.downTime = MyDate()
-                    mongoTemplate.save(product)
-                    DEBUG = true
-                    logger.debug("有产品下架 $product")
-                }
-            }
-        }
-    }
-
-    private fun checkProductBuyable(product: Product, handle: (Boolean, Product) -> Unit) {
-        vertx.eventBus().request<Boolean>(EVNETBUS_DOWN, Gson().toJson(product)) { ar ->
-            if (ar.succeeded()) {
-                handle(ar.result().body(), product)
-            } else {
-                logger.error(ar.cause())
-                ar.cause().printStackTrace()
-            }
-        }
-    }
-
-    private fun duplicateAndSave(line: ProductLine, upProducts: MutableList<String>) {
-        val q = Query()
-            .addCriteria(
-                Criteria.where("line").`is`(line.name)
-                    .and("downTime").`is`(null)
-            )
-        val upProductCodes = upProducts.map { getCode(it) }
+        val upProductCodes = upProducts.map { it.code }
         val dbUpProducts = mongoTemplate.find(q, Product::class.java)
-        dbUpProducts.filter { it.code in upProductCodes }.forEach { downMap[it.code] = 0 }
         dbUpProducts.filter { it.code !in upProductCodes }.forEach {
             //数据库中的产品不在网页上，下架了
-            //对于下架要谨慎处理，因为 applestore 网页的返回值好像不是很稳定
-            val down = downMap.getOrPut(it.code, { 0 })
-            downMap[it.code] = down + 1
-            if (downMap[it.code]!! > 3) {
-                logger.debug("产品下架 $it")
-                DEBUG = true
-                it.downTime = MyDate()
-                mongoTemplate.save(it)
-                downMap.remove(it.code)
-            }
+            logger.debug("产品下架 $it")
+            it.downTime = MyDate()
+            mongoTemplate.save(it)
         }
         val dbUpProductCodes = dbUpProducts.map { it.code }
-        upProducts.removeIf { getCode(it) in dbUpProductCodes }
-        upProducts.map { Product(0L, it, line, getCode(it)) }.forEach { p ->
+        //在数据库中已经存在的，不是新上架的商品
+        upProducts.removeIf { it.code in dbUpProductCodes }
+        upProducts.forEach { p ->
             logger.debug("发现新的产品上架: $p")
-            downMap[p.code] = 0
             mongoTemplate.save(p)
         }
     }
@@ -219,7 +172,13 @@ val httpClientOptions =
 class CrawlerVerticle : AbstractVerticle() {
 
     private val config: Config = SpringContainer[Config::class.java]
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .addInterceptor(DefaultInterceptor())
+        .cache(null)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(40, TimeUnit.SECONDS)
+        .cookieJar(DefaultCookieJar())
+        .build()
     private val DEFAULT_PERIOD = 10000L
 
     override fun start() {
@@ -266,19 +225,21 @@ class CrawlerVerticle : AbstractVerticle() {
             override fun onResponse(call: Call, response: Response) {
                 val html = response.body!!.string()
                 val soup = Jsoup.parse(html)
-                val ul = soup.select("div.refurbished-category-grid-no-js")[0].select("ul")[0]
-                val products = ul.select("li")
-                    .map { it.select("a")[0] }
-                    .map { a ->
-                        logger.trace("爬取到 $a")
-                        val href = a.attr("href")
-                        "${a.text()}，链接为：https://www.apple.com.cn${href.removeRange(
-                            href.indexOf("?fnode"),
-                            href.length
-                        )}"
+                val json = soup.select("#page > div:nth-child(13) > script")[0].html()
+                    .removePrefix("window.REFURB_GRID_BOOTSTRAP = ").removeSuffix(";")
+                val obj = JsonParser.parseString(json).asJsonObject
+                val products = obj["tiles"].asJsonArray.map { it.asJsonObject }
+                    .filter { it["omnitureModel"].asJsonObject["customerCommitString"].asString == "有现货" }
+                    .map {
+                        Product(
+                            0L,
+                            it["title"].asString,
+                            line,
+                            it["partNumber"].asString
+                        )
                     }
-                if (DEBUG) {
-                    writeFile(Date().time.toString(), html)
+                if (DEBUG && line == ProductLine.IPAD) {
+                    writeFile("${Date().time.toString()}-${products.size}", html)
                 }
                 vertx.eventBus().send(line.name, Gson().toJson(products))
             }
