@@ -142,6 +142,7 @@ class DispatcherVerticle : AbstractVerticle() {
             downMap[it.code] = down + 1
             if (downMap[it.code]!! > 3) {
                 logger.debug("产品下架 $it")
+                DEBUG = true
                 it.downTime = MyDate()
                 mongoTemplate.save(it)
                 downMap.remove(it.code)

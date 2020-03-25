@@ -2,6 +2,18 @@
 
 ## 简介
 
+### Apple Store 的翻新区上新监视器
+
+Apple Store 的翻新区会不定期上架一些翻新的商品，此监视器能够定时检测苹果商店的网页，当有翻新商品上架时，会向指定邮箱发送邮件，即时提醒用户去抢购。
+
+> 在iPad Pro贴吧逛了逛之后发现，抢翻新的人还是有点多的。
+
+![Demo]()
+
+## 界面
+
+![](https://raw.githubusercontent.com/Kherrisan/apple-store-listener/master/page.png)
+
 ## 技术
 
 1. Vertx 用于线程通信。
