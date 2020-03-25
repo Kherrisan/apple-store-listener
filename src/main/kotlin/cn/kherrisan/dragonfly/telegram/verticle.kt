@@ -236,6 +236,9 @@ class CrawlerVerticle : AbstractVerticle() {
                     val json = soup.select("#page > div:nth-child(13) > script")[0].html()
                         .removePrefix("window.REFURB_GRID_BOOTSTRAP = ").removeSuffix(";")
                     val obj = JsonParser.parseString(json).asJsonObject
+                    if (obj["tiles"].isJsonNull) {
+                        return
+                    }
                     val products = obj["tiles"].asJsonArray.map { it.asJsonObject }
                         .filter { it["omnitureModel"].asJsonObject["customerCommitString"].asString == "有现货" }
                         .map {
@@ -246,7 +249,6 @@ class CrawlerVerticle : AbstractVerticle() {
                                 it["partNumber"].asString
                             )
                         }
-
                     if (DEBUG && line == ProductLine.IPAD) {
                         writeFile("${Date().time.toString()}-${products.size}", html)
                     }
