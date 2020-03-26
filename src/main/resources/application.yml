@@ -8,8 +8,6 @@ dragonfly:
     - zdkscope01@outlook.com
     - zdkscope02@outlook.com
     - zdkscope03@outlook.com
-    - zdkscope04@outlook.com
-    - zdkscope05@outlook.com
 server:
   port: 8080
 spring:
