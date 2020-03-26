@@ -45,7 +45,9 @@ fun getCode(full: String): String {
 
 class EmailVerticle : AbstractVerticle() {
 
-    val mailers = SpringContainer[Config::class.java].emails.map {
+    private val config = SpringContainer[Config::class.java]
+
+    val mailers = config.emails.map {
         MailerBuilder
             .withSMTPServer("smtp-mail.outlook.com", 587, it, EMAIL_PASSWORD)
             .withTransportStrategy(TransportStrategy.SMTP_TLS)
@@ -77,7 +79,7 @@ class EmailVerticle : AbstractVerticle() {
 
     private fun buildMail(addr: String, content: String): Email {
         return EmailBuilder.startingBlank()
-            .from("zdkscope@outlook.com")
+            .from(config.emails[roundRobing])
             .to("Subscriber", addr)
             .withSubject("Apple Store翻新区上新了。")
             .withPlainText(content)
