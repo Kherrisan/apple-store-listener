@@ -11,6 +11,7 @@ import okhttp3.Response
 import org.apache.commons.lang3.time.DateUtils
 import org.jsoup.Jsoup
 import org.simplejavamail.api.email.Email
+import org.simplejavamail.api.mailer.Mailer
 import org.simplejavamail.api.mailer.config.TransportStrategy
 import org.simplejavamail.email.EmailBuilder
 import org.simplejavamail.mailer.MailerBuilder
@@ -30,6 +31,7 @@ const val TELEGRAM_ADDRESS = "TELEGRAM_ADDRESS"
 
 val CODE_PATTERN = Pattern.compile("/shop/product/(.+)$")
 var DEBUG = false
+val EMAIL_PASSWORD = System.getenv("password")!!
 
 fun main() {
     println(getCode("翻新 Apple Watch Series 4 (GPS + 蜂窝网络)，44 毫米银色铝金属表壳搭配白色运动型表带，链接为：https://www.apple.com.cn/cn-k12/shop/product/FTVR2CH/A"))
@@ -43,11 +45,21 @@ fun getCode(full: String): String {
 
 class EmailVerticle : AbstractVerticle() {
 
-    val mailer = MailerBuilder
-        .withSMTPServer("smtp-mail.outlook.com", 587, "zdkscope@outlook.com", "zou970514")
-        .withTransportStrategy(TransportStrategy.SMTP_TLS)
-        .withSessionTimeout(10 * 1000)
-        .buildMailer()
+    val mailers = SpringContainer[Config::class.java].emails.map {
+        MailerBuilder
+            .withSMTPServer("smtp-mail.outlook.com", 587, it, EMAIL_PASSWORD)
+            .withTransportStrategy(TransportStrategy.SMTP_TLS)
+            .withSessionTimeout(10 * 1000)
+            .buildMailer()
+    }
+
+    var roundRobing = 0
+
+    val mailer: Mailer
+        get() {
+            roundRobing = (roundRobing + 1) % mailers.size
+            return mailers[roundRobing]
+        }
 
     override fun start() {
         vertx.eventBus().consumer<String>(EVENTBUS_EMAIL) { it ->

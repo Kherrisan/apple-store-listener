@@ -8,7 +8,9 @@ Apple Store 的翻新区会不定期上架一些翻新的商品，此监视器�
 
 > 在iPad Pro贴吧逛了逛之后发现，抢翻新的人还是有点多的。
 
-![Demo](https://asl.kherrisan.cn)
+**虽然功能是基本完成的，但考虑到可能出现的各种奇奇怪怪的原因，本程序不做任何承诺和保证。**
+
+[Demo](https://asl.kherrisan.cn)
 
 ## 有且只有唯一的界面
 

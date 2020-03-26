@@ -65,7 +65,8 @@ open class Config(
     var token: String? = System.getenv("token"),
     var name: String? = null,
     var creatorId: Int? = null,
-    var chatId: Long? = null
+    var chatId: Long? = null,
+    var emails: List<String> = listOf()
 )
 
 class MyDate(ts: Long) : Date(ts) {
