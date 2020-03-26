@@ -34,6 +34,7 @@ class MainController {
             return Gson().toJson(Response("该邮箱已经订阅过了", false))
         }
         val r = Subscription(email, ProductLine.valueOf(line.toUpperCase()))
+        logger.debug("$email 订阅 $line")
         mongoTemplate.save(r)
         return Gson().toJson(Response("订阅成功"))
     }
@@ -50,6 +51,7 @@ class MainController {
         return if (res == null) {
             Gson().toJson(Response("该邮箱还没有订阅", false))
         } else {
+            logger.debug("$email 取消订阅 $line")
             Gson().toJson(Response("取消订阅成功"))
         }
     }

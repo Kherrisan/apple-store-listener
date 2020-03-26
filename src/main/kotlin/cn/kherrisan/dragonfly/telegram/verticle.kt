@@ -8,11 +8,13 @@ import io.vertx.core.eventbus.Message
 import io.vertx.kotlin.ext.web.client.webClientOptionsOf
 import okhttp3.*
 import okhttp3.Response
+import org.apache.commons.lang3.time.DateUtils
 import org.jsoup.Jsoup
 import org.simplejavamail.api.email.Email
 import org.simplejavamail.api.mailer.config.TransportStrategy
 import org.simplejavamail.email.EmailBuilder
 import org.simplejavamail.mailer.MailerBuilder
+import org.springframework.data.domain.Sort
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
@@ -93,27 +95,41 @@ class DispatcherVerticle : AbstractVerticle() {
     }
 
     private fun distinctAndSave(line: ProductLine, upProducts: MutableList<Product>) {
-        val upIpadPros = upProducts.filter { it.name.contains("iPad Pro") }.toMutableList()
-        val q = Query()
-            .addCriteria(
-                Criteria.where("line").`is`(line.name)
-                    .and("downTime").`is`(null)
-            )
-        val upProductCodes = upIpadPros.map { it.code }
-        val dbUpProducts = mongoTemplate.find(q, Product::class.java)
-        dbUpProducts.filter { it.code !in upProductCodes }.forEach {
-            //数据库中的产品不在网页上，下架了
-            logger.debug("产品下架 $it")
-            it.downTime = MyDate()
-            mongoTemplate.save(it)
-        }
-        val dbUpProductCodes = dbUpProducts.map { it.code }
-        //在数据库中已经存在的，不是新上架的商品
-        upIpadPros.removeIf { it.code in dbUpProductCodes }
-        upIpadPros.forEach { p ->
+        upProducts.forEach { p ->
+            var q = Query()
+                .addCriteria(
+                    Criteria.where("code").`is`(p.code)
+                        .and("downTime").ne(null)
+                )
+                .with(Sort.by(Sort.Direction.DESC, "downTime"))
+            val downProduct = mongoTemplate.findOne(q, Product::class.java)
+            if (downProduct != null && DateUtils.addHours(downProduct.downTime!!, 1) > Date()) {
+                //该产品在 1h 之内下架过，不再上架
+                return@forEach
+            }
+            q = Query(Criteria.where("code").`is`(p.code).and("downTime").`is`(null))
+            val upProduct = mongoTemplate.findOne(q, Product::class.java)
+            if (upProduct != null) {
+                //上架过，不再上架
+                return@forEach
+            }
             logger.debug("发现新的产品上架: $p")
             mongoTemplate.save(p)
         }
+        //处理产品的下架
+        val q = Query(
+            Criteria.where("line").`is`(line)
+                .and("downTime").`is`(null)
+        )
+        val upProductCodes = upProducts.map { it.code }
+        val dbUpProducts = mongoTemplate.find(q, Product::class.java)
+        dbUpProducts.filter { it.code !in upProductCodes }
+            .forEach {
+                //数据库中的产品不在网页上，下架了
+                logger.debug("产品下架 $it")
+                it.downTime = MyDate()
+                mongoTemplate.save(it)
+            }
     }
 
     private fun dispatchNewTelegram(line: ProductLine) {
@@ -249,6 +265,7 @@ class CrawlerVerticle : AbstractVerticle() {
                                 it["partNumber"].asString
                             )
                         }
+                        .filter { it.name.contains("iPad Pro") }
                     if (DEBUG && line == ProductLine.IPAD) {
                         writeFile("${Date().time.toString()}-${products.size}", html)
                     }
