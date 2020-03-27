@@ -66,7 +66,7 @@ open class Config(
     var name: String? = null,
     var creatorId: Int? = null,
     var chatId: Long? = null,
-    var emails: List<String> = listOf()
+    var aliyunAccessKey: String? = null
 )
 
 class MyDate(ts: Long) : Date(ts) {

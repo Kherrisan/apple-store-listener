@@ -1,5 +1,10 @@
 package cn.kherrisan.dragonfly.telegram
 
+import com.aliyuncs.DefaultAcsClient
+import com.aliyuncs.IAcsClient
+import com.aliyuncs.dm.model.v20151123.BatchSendMailRequest
+import com.aliyuncs.dm.model.v20151123.SingleSendMailRequest
+import com.aliyuncs.profile.DefaultProfile
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
@@ -31,7 +36,6 @@ const val TELEGRAM_ADDRESS = "TELEGRAM_ADDRESS"
 
 val CODE_PATTERN = Pattern.compile("/shop/product/(.+)$")
 var DEBUG = false
-val EMAIL_PASSWORD = System.getenv("password")!!
 
 fun main() {
     println(getCode("翻新 Apple Watch Series 4 (GPS + 蜂窝网络)，44 毫米银色铝金属表壳搭配白色运动型表带，链接为：https://www.apple.com.cn/cn-k12/shop/product/FTVR2CH/A"))
@@ -46,44 +50,42 @@ fun getCode(full: String): String {
 class EmailVerticle : AbstractVerticle() {
 
     private val config = SpringContainer[Config::class.java]
+    private val client: IAcsClient
 
-    val mailers = config.emails.map {
-        MailerBuilder
-            .withSMTPServer("smtp-mail.outlook.com", 587, it, EMAIL_PASSWORD)
-            .withTransportStrategy(TransportStrategy.SMTP_TLS)
-            .withSessionTimeout(10 * 1000)
-            .buildMailer()
+    init {
+        val profile =
+            DefaultProfile.getProfile("cn-hangzhou", config.aliyunAccessKey!!, System.getenv("aliyunAccessSecret")!!)
+        client = DefaultAcsClient(profile);
     }
-
-    var roundRobing = 0
-
-    val mailer: Mailer
-        get() {
-            roundRobing = (roundRobing + 1) % mailers.size
-            return mailers[roundRobing]
-        }
 
     override fun start() {
         vertx.eventBus().consumer<String>(EVENTBUS_EMAIL) { it ->
             val msg = Gson().fromJson<MessageJob>(it.body(), MessageJob::class.java)
             val content = msg.products.map { "${it.name}，链接为 ${it.link}" }.joinToString("\n")
             logger.trace("正在发送邮件给 ${msg.receiver}：$content")
-            try {
-                mailer.sendMail(buildMail(msg.receiver, content))
-            } catch (e: Exception) {
-                logger.error(e)
-                e.printStackTrace()
-            }
+            vertx.executeBlocking<Unit>({
+                try {
+                    client.getAcsResponse(buildMail(msg.receiver, content))
+                    //每秒发 < 100 封邮件
+                    Thread.sleep(15)
+                } catch (e: Exception) {
+                    logger.error(e)
+                    e.printStackTrace()
+                }
+            }, {})
         }
     }
 
-    private fun buildMail(addr: String, content: String): Email {
-        return EmailBuilder.startingBlank()
-            .from(config.emails[roundRobing])
-            .to("Subscriber", addr)
-            .withSubject("Apple Store翻新区上新了。")
-            .withPlainText(content)
-            .buildEmail()
+    private fun buildMail(addr: String, content: String): SingleSendMailRequest {
+        val req = SingleSendMailRequest()
+        req.accountName = "applesl@kherrisan.cn"
+        req.addressType = 1
+        req.replyToAddress = true
+        req.subject = "Apple Store翻新区上新啦~"
+        req.toAddress = addr
+        req.textBody =
+            "尊敬的用户（${addr}），您订阅的产品上新啦：\n ${content}\n 若要退订请点击 https://asl.kherrisan.cn/ 并输入您订阅时填写的邮箱，点击*取消订阅*按钮"
+        return req
     }
 }
 
@@ -118,6 +120,7 @@ class DispatcherVerticle : AbstractVerticle() {
                 .with(Sort.by(Sort.Direction.DESC, "downTime"))
             val downProduct = mongoTemplate.findOne(q, Product::class.java)
             if (downProduct != null && DateUtils.addHours(downProduct.downTime!!, 1) > Date()) {
+                logger.debug("${downProduct.line}(${downProduct.code}) 在一小时之内下架过，不予入库 $downProduct")
                 //该产品在 1h 之内下架过，不再上架
                 return@forEach
             }
@@ -125,9 +128,10 @@ class DispatcherVerticle : AbstractVerticle() {
             val upProduct = mongoTemplate.findOne(q, Product::class.java)
             if (upProduct != null) {
                 //上架过，不再上架
+                logger.debug("${upProduct.line}(${upProduct.code}) 正处于上架状态，不予入库")
                 return@forEach
             }
-            logger.debug("发现新的产品上架: $p")
+            logger.debug("发现新的产品上架，并入库: $p")
             mongoTemplate.save(p)
         }
         //处理产品的下架
@@ -180,6 +184,7 @@ class DispatcherVerticle : AbstractVerticle() {
                 Criteria.where("line").`is`(line.name)
                     .and("downTime").`is`(null)
             )
+        //查询没有下架的产品
         val upProducts = mongoTemplate.find(q, Product::class.java)
         if (upProducts.isEmpty()) {
             return
@@ -188,6 +193,7 @@ class DispatcherVerticle : AbstractVerticle() {
             Criteria.where("_id.line").`is`(line.name)
                 .and("_id.email").ne(TELEGRAM_ADDRESS)
         )
+        //查询订阅了该产品线的用户
         val subUsers = mongoTemplate.find(q, Subscription::class.java)
         subUsers.forEach { sub ->
             val unReceivedProducts = upProducts.filter { it.pid > sub.pid }

@@ -23,6 +23,8 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-data-mongodb"
     implementation "org.apache.logging.log4j:log4j-api:2.13.0"
     implementation "org.apache.logging.log4j:log4j-core:2.13.0"
+    implementation "com.aliyun:aliyun-java-sdk-core:3.0.0"
+    implementation "com.aliyun:aliyun-java-sdk-dm:3.1.0"
     implementation "com.google.code.gson:gson:2.8.6"
     compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '4.4.1'
     compile group: 'org.jsoup', name: 'jsoup', version: '1.8.3'

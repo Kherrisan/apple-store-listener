@@ -4,10 +4,7 @@ dragonfly:
   creatorId: 664242935
   name: Lecia
   tg: false
-  emails:
-    - zdkscope01@outlook.com
-    - zdkscope02@outlook.com
-    - zdkscope03@outlook.com
+  aliyunAccessKey: LTAI4FiKYsfCwE2srbMfRtxg
 server:
   port: 8080
 spring:
