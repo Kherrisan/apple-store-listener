@@ -10,7 +10,7 @@ Apple Store 的翻新区会不定期上架一些翻新的商品，此监视器�
 
 **虽然功能是基本完成的，但考虑到可能出现的各种奇奇怪怪的原因，本程序不做任何承诺和保证。**
 
-[Demo](https://asl.kherrisan.cn)
+[点此进入](https://asl.kherrisan.cn)
 
 ## 有且只有唯一的界面
 
@@ -31,4 +31,3 @@ Apple Store 的翻新区会不定期上架一些翻新的商品，此监视器�
 1. 访问翻新网站，最好使用 Safari，或者把 User-Agent 改为 Safari 的配置。不知道 Apple Store 是否针对 User-Agent 做了选择性的行为。
 2. Vertx 其实也就那样，像这种小东西没必要用 Vertx 搞得有板有眼的。一把梭就行了。
 
-<a href="https://www.buymeacoffee.com/Kherrisan" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" style="height: 51px !important;width: 217px !important;" ></a>
