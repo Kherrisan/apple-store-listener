@@ -6,12 +6,17 @@
             <PatternLayout
                     pattern="%style{%d{ABSOLUTE}}{blue} %style{%c{1}.%method}{blue}(%file:%line): %highlight{%msg%n}"/>
         </Console>
+        <File name="debug_file" fileName="debug.log">
+            <PatternLayout
+                    pattern="%style{%d{ABSOLUTE}}{blue} %style{%c{1}.%method}{blue}(%file:%line): %highlight{%msg%n}"/>
+        </File>
     </Appenders>
 
     <!-- Loggers支持配置多个Logger，可引用不同的目标Appender，也可根据业务需求定制特定要求的Appender -->
     <Loggers>
         <Root level="error">
             <AppenderRef ref="Console"/>
+            <AppenderRef ref="debug_file"/>
         </Root>
         <Logger name="cn.kherrisan" level="debug"/>
     </Loggers>
